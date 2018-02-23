@@ -5,7 +5,8 @@ metadata:
   name: web-service
 spec:
   selector:
-    app: music-app-pods
+    app: "webapp-pods"
+    purpose: "move-test"
   type: ClusterIP
   ports:
     - name: http
