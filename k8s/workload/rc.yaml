@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: bunch-rc
+spec:
+  replicas: 2
+  selector:
+    app: "rc-bunchpods"
+    purpose: "move-rc-test"
+  template:
+    metadata:
+      labels:
+        app: "rc-bunchpods"
+        purpose: "move-rc-test"
+    spec:
+      containers:
+      - name: "memory-2mb"
+        image: beekman9527/memoryload:latest
+        resources:
+          requests:
+            memory: "25Mi"
+            cpu: "10m"
+          limits:
+            memory: "270Mi"
+            cpu: "50m"
+        env:
+        - name: RUN_TYPE
+          value: "memory"
+        - name: MEMORY_NUM
+          value: "2"
+

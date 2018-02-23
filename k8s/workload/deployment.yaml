@@ -1,0 +1,32 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: bunch
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "yyy-bunchpods"
+      purpose: "move-test"
+  template:
+    metadata:
+      labels:
+        app: "yyy-bunchpods"
+        purpose: "move-test"
+    spec:
+      containers:
+      - name: "memory-2mb"
+        image: beekman9527/memoryload:latest
+        resources:
+          requests:
+            memory: "25Mi"
+            cpu: "10m"
+          limits:
+            memory: "270Mi"
+            cpu: "50m"
+        env:
+        - name: RUN_TYPE
+          value: "memory"
+        - name: MEMORY_NUM
+          value: "2"
+
