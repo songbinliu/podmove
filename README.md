@@ -1,8 +1,7 @@
 # podmove
-move pods by using the RC/RS adoption 
+move a pod which is controlled by a ReplicaSet or ReplicationController.
 
-# move a pod which is controlled by a ReplicaSet or ReplicationController
-There are three steps:
+# Three steps
  1. Create a clone Pod of the original Pod
  
    The cloned pod has everything except the labels and podName of the original Pod;
