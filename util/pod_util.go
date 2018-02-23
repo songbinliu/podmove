@@ -10,6 +10,7 @@ import (
 	api "k8s.io/client-go/pkg/api/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 //TODO: check which fields should be copied
@@ -37,28 +38,11 @@ func CopyPodInfo(oldPod, newPod *api.Pod) {
 }
 
 func CopyPodWithoutLabel(oldPod, newPod *api.Pod) {
-	//1. typeMeta
-	newPod.TypeMeta = oldPod.TypeMeta
+	CopyPodInfo(oldPod, newPod)
 
-	//2. objectMeta
-	newPod.ObjectMeta = oldPod.ObjectMeta
-	newPod.SelfLink = ""
-	newPod.ResourceVersion = ""
-	newPod.Generation = 0
-	newPod.CreationTimestamp = metav1.Time{}
-	newPod.DeletionTimestamp = nil
-	newPod.DeletionGracePeriodSeconds = nil
-
+	// set Labels and OwnerReference to be empty
 	newPod.Labels = make(map[string]string)
 	newPod.OwnerReferences = []metav1.OwnerReference{}
-
-	//3. podSpec
-	spec := oldPod.Spec
-	spec.Hostname = ""
-	spec.Subdomain = ""
-	spec.NodeName = ""
-
-	newPod.Spec = spec
 }
 
 func GenNewPodName(name string) string {
@@ -226,4 +210,65 @@ func CheckPodMoveHealth(client *kclient.Clientset, nameSpace, podName, nodeName 
 	}
 
 	return nil
+}
+
+func ParseInputLimit(cpuLimit, memLimit int) (api.ResourceList, error) {
+	if cpuLimit <= 0 && memLimit <= 0 {
+		err := fmt.Errorf("cpuLimit=[%d], memLimit=[%d]", cpuLimit, memLimit)
+		glog.Error(err)
+		return nil, err
+	}
+
+	result := make(api.ResourceList)
+	if cpuLimit > 0 {
+		result[api.ResourceCPU] = resource.MustParse(fmt.Sprintf("%dm", cpuLimit))
+	}
+	if memLimit > 0 {
+		result[api.ResourceMemory] = resource.MustParse(fmt.Sprintf("%dMi", memLimit))
+	}
+
+	if cpu, exist := result[api.ResourceCPU]; exist {
+		glog.V(2).Infof("cpu: %+v, %v", cpu, cpu.MilliValue())
+	}
+	if mem, exist := result[api.ResourceMemory]; exist {
+		glog.V(2).Infof("memory: %+v, %v", mem, mem.Value())
+	}
+	return result, nil
+}
+
+// update the Pod.Containers[index]'s Resources.Limits and Resources.Requests.
+func updateLimit(pod *api.Pod, patchCapacity api.ResourceList, index int) (bool, error) {
+	glog.V(2).Infof("begin to update Capacity.")
+	changed := false
+
+	if index >= len(pod.Spec.Containers) {
+		err := fmt.Errorf("Cannot find container[%d] in pod[%s]", index, pod.Name)
+		glog.Error(err)
+		return false, err
+	}
+	container := &(pod.Spec.Containers[index])
+
+	//1. get the original capacities
+	result := make(api.ResourceList)
+	for k, v := range container.Resources.Limits {
+		result[k] = v
+	}
+
+	//2. apply the patch
+	for k, v := range patchCapacity {
+		oldv, exist := result[k]
+		if !exist || oldv.Cmp(v) != 0 {
+			result[k] = v
+			changed = true
+			glog.V(2).Infof("Update pod(%v) %v capaicty", k.String(), v)
+		}
+	}
+
+	if !changed {
+		glog.V(2).Infof("Nothing changed of Capacity")
+		return false, nil
+	}
+	container.Resources.Limits = result
+
+	return changed, nil
 }

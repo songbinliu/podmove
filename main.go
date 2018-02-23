@@ -23,6 +23,8 @@ var (
 	podName              string
 	nodeName             string
 	k8sVersion           string
+	memLimit             int
+	cpuLimit             int
 )
 
 const (
@@ -38,12 +40,14 @@ func setFlags() {
 	flag.StringVar(&podName, "podName", "myschedule-cpu-80", "the podNames to be handled, split by ','")
 	flag.StringVar(&nodeName, "nodeName", "", "Destination of move")
 	flag.StringVar(&k8sVersion, "k8sVersion", "1.6", "the version of Kubenetes cluster, candidates are 1.5 | 1.6")
+	flag.IntVar(&memLimit, "memLimit", 0, "the memory limit in MB. 0 means no change")
+	flag.IntVar(&cpuLimit, "cpuLimit", 0, "the cpu limit in m. 0 means no change")
 
 	flag.Set("alsologtostderr", "true")
 	flag.Parse()
 }
 
-func movePod(client *kclient.Clientset, nameSpace, podName, nodeName string) (*v1.Pod, error) {
+func movePod(client *kclient.Clientset, nameSpace, podName, nodeName string, newCapacity v1.ResourceList) (*v1.Pod, error) {
 	podClient := client.CoreV1().Pods(nameSpace)
 	id := fmt.Sprintf("%v/%v", nameSpace, podName)
 
@@ -57,9 +61,7 @@ func movePod(client *kclient.Clientset, nameSpace, podName, nodeName string) (*v
 	}
 
 	if pod.Spec.NodeName == nodeName {
-		err = fmt.Errorf("move-aborted: pod %v is already on node: %v", id, nodeName)
-		glog.Error(err.Error())
-		return nil, err
+		glog.Warningf("move: pod %v is already on node: %v", id, nodeName)
 	}
 
 	glog.V(2).Infof("move-pod: begin to move %v from %v to %v",
@@ -74,15 +76,15 @@ func movePod(client *kclient.Clientset, nameSpace, podName, nodeName string) (*v
 	//2.1 if pod is barely standalone pod, move it directly
 	if parentKind == "" {
 		glog.V(2).Infof("Going to move BarePod %v", id)
-		return mvutil.MoveBarePod(client, pod, nodeName, defaultRetryLess)
+		return mvutil.MoveBarePod(client, pod, nodeName, newCapacity)
 	}
 
 	//2.2 if pod controlled by ReplicationController/ReplicaSet, then need to do more
 	glog.V(2).Infof("Going to move pod %v controlled by %v-%v", id, parentKind, parentName)
-	return mvutil.MovePod(client, pod, nodeName)
+	return mvutil.MovePod(client, pod, nodeName, newCapacity)
 }
 
-func movePods(client *kclient.Clientset, nameSpace, podNames, nodeName string) error {
+func movePods(client *kclient.Clientset, nameSpace, podNames, nodeName string, newCapaicty v1.ResourceList) error {
 	names := strings.Split(podNames, ",")
 	var wg sync.WaitGroup
 
@@ -95,7 +97,7 @@ func movePods(client *kclient.Clientset, nameSpace, podNames, nodeName string) e
 
 		go func() {
 			defer wg.Done()
-			rpod, err := movePod(client, nameSpace, podName, nodeName);
+			rpod, err := movePod(client, nameSpace, podName, nodeName, newCapaicty);
 			if err != nil {
 				glog.Errorf("move pod[%s] failed: %v", podName, err)
 				return
@@ -130,7 +132,13 @@ func main() {
 		return
 	}
 
-	if err := movePods(kubeClient, nameSpace, podName, nodeName); err != nil {
+	patchCapaicty, err := mvutil.ParseInputLimit(cpuLimit, memLimit)
+	if err != nil {
+		glog.Errorf("Failed to parse input limits: %v", err)
+		patchCapaicty = make(v1.ResourceList)
+	}
+
+	if err := movePods(kubeClient, nameSpace, podName, nodeName, patchCapaicty); err != nil {
 		glog.Errorf("move pod failed: %v/%v, %v", nameSpace, podName, err.Error())
 		return
 	}

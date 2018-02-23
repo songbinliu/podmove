@@ -3,3 +3,6 @@
 .idea/
 podmove
 conf/
+script/aws.19.run.sh
+script/azure.19.run.sh
+script/os-run.sh

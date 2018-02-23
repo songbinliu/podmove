@@ -10,7 +10,7 @@ import(
 	"time"
 )
 
-func MoveBarePod(client *kclient.Clientset,  pod *api.Pod, nodeName string, retryNum int) (*api.Pod, error) {
+func MoveBarePod(client *kclient.Clientset,  pod *api.Pod, nodeName string, patchCapacity api.ResourceList) (*api.Pod, error) {
 	podName := pod.Namespace + "/" + pod.Name
 	glog.V(2).Infof("Begin to move pod: %s", podName)
 
@@ -19,6 +19,8 @@ func MoveBarePod(client *kclient.Clientset,  pod *api.Pod, nodeName string, retr
 	CopyPodInfo(pod, npod)
 	npod.Spec.NodeName = nodeName
 	npod.Name = GenNewPodName(pod.Name)
+	updateLimit(npod, patchCapacity, 0)
+
 	podClient := client.CoreV1().Pods(pod.Namespace)
 	rpod, err := podClient.Create(npod)
 	if err != nil {
@@ -36,11 +38,12 @@ func MoveBarePod(client *kclient.Clientset,  pod *api.Pod, nodeName string, retr
 	return rpod, nil
 }
 
-func clonePod(client *kclient.Clientset, pod *api.Pod, nodeName string) (*api.Pod, error) {
+func clonePod(client *kclient.Clientset, pod *api.Pod, nodeName string, patchCapacity api.ResourceList) (*api.Pod, error) {
 	npod := &api.Pod{}
 	CopyPodWithoutLabel(pod, npod)
 	npod.Spec.NodeName = nodeName
 	npod.Name = GenNewPodName(pod.Name)
+	updateLimit(npod, patchCapacity, 0)
 
 	podClient := client.CoreV1().Pods(pod.Namespace)
 	rpod, err := podClient.Create(npod)
@@ -58,7 +61,7 @@ func clonePod(client *kclient.Clientset, pod *api.Pod, nodeName string) (*api.Po
 //1. create a cloned pod without labels;
 //2. kill the original pod;
 //3. add labels to the cloned pod;
-func MovePod(client *kclient.Clientset, pod *api.Pod, nodeName string) (*api.Pod, error) {
+func MovePod(client *kclient.Clientset, pod *api.Pod, nodeName string, patchCapacity api.ResourceList) (*api.Pod, error) {
 	podName := pod.Namespace + "/" + pod.Name
 	glog.V(2).Infof("Begin to move pod(%v)", podName)
 	podClient := client.CoreV1().Pods(pod.Namespace)
@@ -71,7 +74,7 @@ func MovePod(client *kclient.Clientset, pod *api.Pod, nodeName string) (*api.Pod
 	labels := pod.Labels
 
 	//1. create a cloned pod
-	npod, err := clonePod(client, pod, nodeName)
+	npod, err := clonePod(client, pod, nodeName, patchCapacity)
 	if err != nil {
 		glog.Errorf("Move Pod failed: %v", err)
 		return nil, err
