@@ -21,18 +21,14 @@ var (
 	kubeConfig           string
 	nameSpace            string
 	podName              string
-	noexistSchedulerName string
 	nodeName             string
 	k8sVersion           string
 )
 
 const (
-	highK8sVersion                = "1.6"
 	defaultRetryLess              = 2
 	defaultSleep                  = time.Second * 10
 	defaultWaitLockTimeOut        = time.Second * 100
-
-	defaultTTL = time.Second * 30
 )
 
 func setFlags() {
