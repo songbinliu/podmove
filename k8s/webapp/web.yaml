@@ -1,0 +1,43 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: web-service
+spec:
+  selector:
+    app: music-app-pods
+  type: ClusterIP
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: webapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "webapp-pods"
+      purpose: "move-test"
+  template:
+    metadata:
+      labels:
+        app: "webapp-pods"
+        purpose: "move-test"
+    spec:
+      containers:
+      - name: "memory-2mb"
+        image: beekman9527/webapp
+        resources:
+          requests:
+            memory: "25Mi"
+            cpu: "10m"
+          limits:
+            memory: "370Mi"
+            cpu: "200m"
+        ports:
+        - containerPort: 8080
