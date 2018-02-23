@@ -73,11 +73,13 @@ func movePod(client *kclient.Clientset, nameSpace, podName, nodeName string) (*v
 
 	//2.1 if pod is barely standalone pod, move it directly
 	if parentKind == "" {
+		glog.V(2).Infof("Going to move BarePod %v", id)
 		return mvutil.MoveBarePod(client, pod, nodeName, defaultRetryLess)
 	}
 
 	//2.2 if pod controlled by ReplicationController/ReplicaSet, then need to do more
-	return mvutil.MovePod(client, pod, parentKind, parentName, nodeName)
+	glog.V(2).Infof("Going to move pod %v controlled by %v-%v", id, parentKind, parentName)
+	return mvutil.MovePod(client, pod, nodeName)
 }
 
 func movePods(client *kclient.Clientset, nameSpace, podNames, nodeName string) error {

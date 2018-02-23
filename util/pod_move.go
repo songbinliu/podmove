@@ -58,9 +58,9 @@ func clonePod(client *kclient.Clientset, pod *api.Pod, nodeName string) (*api.Po
 //1. create a cloned pod without labels;
 //2. kill the original pod;
 //3. add labels to the cloned pod;
-func MovePod(client *kclient.Clientset, pod *api.Pod, parentKind, parentName, nodeName string) (*api.Pod, error) {
+func MovePod(client *kclient.Clientset, pod *api.Pod, nodeName string) (*api.Pod, error) {
 	podName := pod.Namespace + "/" + pod.Name
-	glog.V(2).Infof("Begin to move pod(%v), parentKind=%v, parentName=%v", podName, parentKind, parentName)
+	glog.V(2).Infof("Begin to move pod(%v)", podName)
 	podClient := client.CoreV1().Pods(pod.Namespace)
 	if podClient == nil {
 		err := fmt.Errorf("cannot get Pod client for nameSpace:%v", pod.Namespace)
