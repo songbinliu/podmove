@@ -1,5 +1,5 @@
 # podmove
-move a pod which is controlled by a ReplicaSet or ReplicationController.
+move a pod which is controlled by a ReplicationController, or ReplicaSet, or Deployment(via ReplicaSet). The [older method](https://github.com/songbinliu/movePod) by modifying the scheduler name cannot move a pod controlled by Deployment.
 
 # Three steps
  1. Create a clone Pod of the original Pod
